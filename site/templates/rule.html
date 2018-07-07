@@ -1,0 +1,147 @@
+{% extends "layout.html" %}
+{% set title = "Rule" %}
+{% set active_page = "rule" %}
+{% block css %}
+<link href="https://querybuilder.js.org/node_modules/jQuery-QueryBuilder/dist/css/query-builder.default.min.css" rel="stylesheet">
+{% endblock %}
+{% block content %}
+    <!-- Content Header (Page header) -->
+    <section class="content-header">
+      <h1>
+        监控配置
+      </h1>
+      <ol class="breadcrumb">
+        <li><a href="/"><i class="fa fa-dashboard"></i> Home</a></li>
+        <li class="active">Monitor</li>
+      </ol>
+    </section>
+    <!-- Main content -->
+    <section class="content">
+      <div class="row">
+        <div class="col-xs-12">
+          <div class="box box-primary">
+            <div class="box-header with-border">
+              <h3 class="box-title">价格警报</h3>
+            </div>
+            <div class="box-body">
+              <div class="alert alert-info alert-dismissible">
+                <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+                <h4><i class="icon fa fa-info"></i> 目前规则</h4>
+                <span id="c_rule">okex_quarter_price &lt; 8000 or okex_quarter_price &gt; 8600</span>
+              </div>
+            </div>
+            <div>
+              <div class="box-body">
+                <div class="row">
+                  <div class="col-md-12">
+                    <div id="builder-basic"></div>
+                    <div class="box-footer">
+                      <div class="btn-group">
+                        <button class="btn btn-warning reset" data-target="basic">清空</button>
+                        <button class="btn btn-success set-json" data-target="basic">重置</button>
+                        <button class="btn btn-info parse-json" data-target="basic">预览</button>
+                      </div>  
+                      <button class="btn btn-primary" data-target="basic" onclick="submit()">提交</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- /.content -->
+{% endblock %}
+{% block script %}
+<!-- AdminLTE App -->
+<script src="{{macro.static_url("dist/js/app.min.js")}}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/4.3.0/bootbox.min.js"></script>
+<script src="{{macro.static_url("plugins/jQuery/query-builder.standalone.js")}}"></script>
+<!-- page script -->
+<script type="text/javascript">
+// var rules_basic = {
+//   condition: 'OR',
+//   rules: [{
+//     id: 'btc_usd-quarter',
+//     operator: 'not_between',
+//     value: [8000, 8600]
+//   }]
+// };
+var rules_basic = JSON.parse('{{ rules | safe}}');
+
+$('#builder-basic').queryBuilder({
+  plugins: ['bt-tooltip-errors'],
+  
+  filters: [{
+    id: 'btc_usd-quarter',
+    label: 'OKEX Quarter Price',
+    type: 'double',
+    operators: ['equal',  'less', 'greater', 'between', 'not_between']
+  }, {
+    id: 'XBTUSD',
+    label: 'Bitmex Price',
+    type: 'double',
+    operators: ['equal', 'less', 'greater', 'between', 'not_between']
+  }, {
+    id: 'btc_usd-this_week',
+    label: 'OKEX Week Price',
+    type: 'double',
+    operators: ['equal', 'less', 'greater', 'between', 'not_between']
+  }],
+
+  rules: rules_basic
+});
+
+// reset builder
+$('.reset').on('click', function() {
+  var target = $(this).data('target');
+
+  $('#builder-'+target).queryBuilder('reset');
+});
+
+// set rules
+$('.set-json').on('click', function() {
+  var target = $(this).data('target');
+  var rules = window['rules_'+target];
+
+  $('#builder-'+target).queryBuilder('setRules', rules);
+});
+// get rules
+$('.parse-json').on('click', function() {
+  var target = $(this).data('target');
+  var result = $('#builder-'+target).queryBuilder('getSQL');
+
+  if (!$.isEmptyObject(result)) {
+      $('#c_rule').html(format4popup(result));
+    // bootbox.alert({
+    //   title: $(this).text(),
+    //   message: '<pre class="code-popup">' + format4popup(result) + '</pre>'
+    // });
+  }
+});
+function format4popup(object) {
+    return object.sql.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  // return JSON.stringify(object, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+    
+function submit() {
+  var result = $('#builder-basic').queryBuilder('getRules');
+  var info = $('#builder-basic').queryBuilder('getSQL');
+  var data;
+  if (!$.isEmptyObject(result)) {
+    data = JSON.stringify(result, null);
+    $.ajax("/rules", {
+        data: data,
+        contentType : 'application/json',
+        type : 'POST',
+        success: function() {
+          $('#c_rule').html(format4popup(info));
+          alert("设置成功！");
+        }
+    });
+  }
+}
+$('.parse-json').click();
+</script>
+{% endblock %}
